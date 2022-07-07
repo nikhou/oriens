@@ -8,7 +8,6 @@ import org.lwjgl.system.*;
 import java.io.IOException;
 import java.nio.*;
 
-import java.util.Arrays;
 import java.util.Objects;
 
 import static org.lwjgl.glfw.Callbacks.*;
@@ -19,38 +18,10 @@ import static org.lwjgl.system.MemoryStack.*;
 import static org.lwjgl.system.MemoryUtil.*;
 
 public class Main {
-    ClassLoader classLoader = getClass().getClassLoader();
 
     private long window;
 
-    float[] vertices = {
-            // first triangle
-            -0.9f, -0.5f, 0.0f,  // left
-            -0.0f, -0.5f, 0.0f,  // right
-            -0.45f, 0.5f, 0.0f,  // top
-            // second triangle
-            0.0f, -0.5f, 0.0f,  // left
-            0.9f, -0.5f, 0.0f,  // right
-            0.45f, 0.5f, 0.0f   // top
-    };
-
-    float[] squareVertices = {
-            -1f, -1f,   //botRight
-            1f, -1f,    //botLeft
-            -1f, 1f,    //topRight
-            1f, 1f,     //topLeft
-    };
-
-    int[] indices = {
-            0, 1, 2,
-            1, 2, 3
-    };
-
-    private int vertexShader;
-    private int fragmentShader;
-    private int program;
-
-    int VBO, VAO, EBO;
+    Model testModel;
 
     public void run() {
         System.out.println("Hello LWJGL " + Version.getVersion() + "! "+"Java version: "+System.getProperty("java.version"));
@@ -58,10 +29,7 @@ public class Main {
         init();
         loop();
 
-        glDeleteVertexArrays(VAO);
-        glDeleteBuffers(VBO);
-        glDeleteBuffers(EBO);
-        glDeleteProgram(program);
+        Model.cleanUp();
 
         // Free the window callbacks and destroy the window
         glfwFreeCallbacks(window);
@@ -111,14 +79,14 @@ public class Main {
             glfwGetWindowSize(window, pWidth, pHeight);
 
             // Get the resolution of the primary monitor
-            GLFWVidMode vidmode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+            GLFWVidMode vidMode = glfwGetVideoMode(glfwGetPrimaryMonitor());
 
             // Center the window
-            assert vidmode != null;
+            assert vidMode != null;
             glfwSetWindowPos(
                     window,
-                    (vidmode.width() - pWidth.get(0)) / 2,
-                    (vidmode.height() - pHeight.get(0)) / 2
+                    (vidMode.width() - pWidth.get(0)) / 2,
+                    (vidMode.height() - pHeight.get(0)) / 2
             );
         } // the stack frame is popped automatically
 
@@ -133,69 +101,15 @@ public class Main {
 
         // Create the OpenGL bindings available for use
         GL.createCapabilities();
-
-        // Loading Shaders
         try {
-            @SuppressWarnings("ConstantConditions")
-            String inShader = new String(classLoader.getResourceAsStream("shaders/gShader.vert").readAllBytes());
-            vertexShader = glCreateShader(GL_VERTEX_SHADER);
-            glShaderSource(vertexShader, inShader);
-            glCompileShader(vertexShader);
-
-            //Check shader status
-            {int[] success = new int[1];
-            glGetShaderiv(vertexShader, GL_COMPILE_STATUS, success);
-            if(success[0]==0) throw new RuntimeException(inShader);}
-
-            inShader = new String(classLoader.getResourceAsStream("shaders/gShader.frag").readAllBytes());
-            fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-            glShaderSource(fragmentShader, inShader);
-            glCompileShader(fragmentShader);
-
-            //Check shader status
-            {int[] success = new int[1];
-            glGetShaderiv(vertexShader, GL_COMPILE_STATUS, success);
-            if(success[0]==0) throw new RuntimeException(inShader);}
+            testModel = new Model("models/triangle.json");
         } catch (IOException e) {
+            e.printStackTrace();
+        } catch (RuntimeException e){
             System.out.println(e.getMessage());
-        } catch (RuntimeException e) {
-            System.out.println(e.getMessage());
-            System.out.println(glGetShaderInfoLog(vertexShader, 512));
         }
 
-        // Creating program
-        program = glCreateProgram();
-        glAttachShader(program, vertexShader);
-        glAttachShader(program, fragmentShader);
-        glLinkProgram(program);
-        try {
-            int[] success = new int[1];
-            glGetProgramiv(program,GL_LINK_STATUS, success);
-            if(success[0]==0) throw new RuntimeException("ERROR::SHADER::PROGRAM::LINKING_FAILED");
-        } catch (RuntimeException e) {
-            System.out.println(glGetProgramInfoLog(program));
-        }
-
-        glDeleteShader(vertexShader);
-        glDeleteShader(fragmentShader);
-
-        VAO = glGenVertexArrays();
-        VBO = glGenBuffers();
-        EBO = glGenBuffers();
-
-        glBindVertexArray(VAO);
-
-        glBindBuffer(GL_ARRAY_BUFFER, VBO);
-        glBufferData(GL_ARRAY_BUFFER, squareVertices, GL_STATIC_DRAW);
-
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices, GL_STATIC_DRAW);
-
-        glVertexAttribPointer(0,2, GL_FLOAT, false, 2*Float.BYTES, 0);
-        glEnableVertexAttribArray(0);
-
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-        glBindVertexArray(0);
+        assert testModel != null;
     }
 
     private void loop() {
@@ -206,12 +120,7 @@ public class Main {
             glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT); // clear the framebuffer
 
-            glUseProgram(program);
-            glBindVertexArray(VAO);
-
-            glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
-            //glDrawArrays(GL_TRIANGLES, 0, 6);
-            glBindVertexArray(0);
+            testModel.draw();
 
             glfwSwapBuffers(window); // swap the color buffers
 

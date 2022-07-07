@@ -1,0 +1,9 @@
+{
+  "vertex": {
+    "name": "gShader",
+    "data": "some data"
+  },
+  "fragment": {
+    "name": "gShader"
+  }
+}
